@@ -29,37 +29,37 @@
 #define __MATRIX__
 
 class Matrix {
-    private:
-        float* m_data;
-        bool   m_isTransposed;
-        int    m_rows;
-        int    m_cols;
+ private:
+  float* m_data;
+  bool m_isTransposed;
+  int m_rows;
+  int m_cols;
 
-    public:
-        Matrix(int rows, int cols, bool isTransposed=false);
+ public:
+  Matrix(int rows, int cols, bool isTransposed = false);
 
-        void randomize(float mean, float scale, int sparsity = 0);
-        
-        int index(int row, int col); 
+  void randomize(float mean, float scale, int sparsity = 0);
 
-        void set(int row, int col, float val);
+  int index(int row, int col);
 
-        float get(int row, int col);
+  void set(int row, int col, float val);
 
-        int rows();
+  float get(int row, int col);
 
-        int cols();
+  int rows();
 
-        void print(const char* name); 
+  int cols();
 
-        float* data();
+  void print(const char* name);
+
+  float* data();
 };
 
 void matrix_multiply(Matrix& C, Matrix& A, Matrix& B);
 void matrix_add(Matrix& C, Matrix& A, Matrix& B);
-void matrix_bias(Matrix& C, Matrix&A, Matrix& B);
-void matrix_compare(const char* name, Matrix& A, Matrix& B, float max_error=1.e-6, bool relu=false);
-void matrix_relu(Matrix& dst, Matrix& src); 
+void matrix_bias(Matrix& C, Matrix& A, Matrix& B);
+void matrix_compare(const char* name, Matrix& A, Matrix& B, float max_error = 1.e-6, bool relu = false);
+void matrix_relu(Matrix& dst, Matrix& src);
 void matrix_softmax(Matrix& dst, Matrix& src);
 
 #endif

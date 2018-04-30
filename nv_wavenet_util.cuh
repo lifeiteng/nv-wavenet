@@ -12,10 +12,10 @@
  *       names of its contributors may be used to endorse or promote products
  *       derived from this software without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL NVIDIA CORPORATION BE LIABLE FOR ANY
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ *AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ *IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ *ARE DISCLAIMED. IN NO EVENT SHALL NVIDIA CORPORATION BE LIABLE FOR ANY
  * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
  * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
  * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -31,61 +31,60 @@
 #include <stdio.h>
 #include "cuda_occupancy.h"
 
-#define gpuErrChk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
-inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true) {
-    if (code != cudaSuccess) {
-        fprintf(stderr, "GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
-        if (abort) exit(code);
-    }
+#define gpuErrChk(ans) \
+  { gpuAssert((ans), __FILE__, __LINE__); }
+inline void gpuAssert(cudaError_t code, const char* file, int line, bool abort = true) {
+  if (code != cudaSuccess) {
+    fprintf(stderr, "GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
+    if (abort) exit(code);
+  }
 }
 
 int getOccupancy(int deviceId, size_t blockSize, void* func) {
-    cudaDeviceProp prop;
-    gpuErrChk ( cudaGetDeviceProperties(&prop, 0) );
-    cudaOccDeviceProp occProp = prop;
+  cudaDeviceProp prop;
+  gpuErrChk(cudaGetDeviceProperties(&prop, 0));
+  cudaOccDeviceProp occProp = prop;
 
-    cudaFuncAttributes attr;
-    gpuErrChk ( cudaFuncGetAttributes(&attr, func) );
-    cudaOccFuncAttributes occAttr = attr;
+  cudaFuncAttributes attr;
+  gpuErrChk(cudaFuncGetAttributes(&attr, func));
+  cudaOccFuncAttributes occAttr = attr;
 
-    cudaOccDeviceState occState;
+  cudaOccDeviceState occState;
 
-    cudaOccResult result;
-    cudaOccMaxActiveBlocksPerMultiprocessor(&result, &occProp, &occAttr, &occState, blockSize, 0);
+  cudaOccResult result;
+  cudaOccMaxActiveBlocksPerMultiprocessor(&result, &occProp, &occAttr, &occState, blockSize, 0);
 
-    return result.activeBlocksPerMultiprocessor;
-
+  return result.activeBlocksPerMultiprocessor;
 }
 
 __device__ __forceinline__ half loadVolatile(const volatile half* y, int index) {
-    const volatile __half_raw* chr = (reinterpret_cast<const volatile __half_raw *>(y) );
-    __half_raw hr;
-    hr.x = chr[index].x;
-    return half( hr );
+  const volatile __half_raw* chr = (reinterpret_cast<const volatile __half_raw*>(y));
+  __half_raw hr;
+  hr.x = chr[index].x;
+  return half(hr);
 }
 __device__ __forceinline__ void storeVolatile(volatile half* y, int index, half val) {
-    half* y_nv = (half*)y;
-    y_nv[index] = val;
+  half* y_nv = (half*)y;
+  y_nv[index] = val;
 }
 
-__device__ __forceinline__ float loadVolatile(const volatile float* y, int index) {
-    return y[index];
-}
-__device__ __forceinline__ void storeVolatile(volatile float* y, int index, float val) {
-    y[index] = val;
-}
+__device__ __forceinline__ float loadVolatile(const volatile float* y, int index) { return y[index]; }
+__device__ __forceinline__ void storeVolatile(volatile float* y, int index, float val) { y[index] = val; }
 
 __forceinline__ __device__ float sigmoid(float in) {
-    float ans = 1.f / (1.f + expf(-in));
-    return ans;
+  float ans = 1.f / (1.f + expf(-in));
+  return ans;
 }
 
 __forceinline__ __device__ float _tanh(float in) {
-    float ans = tanhf(in);
-    return ans;
+  float ans = tanhf(in);
+  return ans;
 }
 
 __device__ __forceinline__ float relu(float f) { return (f < 0.f) ? 0.f : f; }
-__device__ __forceinline__ half relu(half h) { half zero = 0.f; return (h < zero) ? zero : h; }
+__device__ __forceinline__ half relu(half h) {
+  half zero = 0.f;
+  return (h < zero) ? zero : h;
+}
 
 #endif
