@@ -13,9 +13,9 @@
  *       derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- *AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- *IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- *ARE DISCLAIMED. IN NO EVENT SHALL NVIDIA CORPORATION BE LIABLE FOR ANY
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL NVIDIA CORPORATION BE LIABLE FOR ANY
  * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
  * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
  * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -366,12 +366,12 @@ __device__ void nv_wavenet_persistent_cur_res(int thread_id, int num_samples, vo
           __syncthreads();
       }
     }
-  } else if (thread_id < 3 * R) {
+  } else if (thread_id < 3 * R) {  // Formula (3)  (4)  (5)
     int row = thread_id - R;
     nv_wavenet_persistent_cur<T_weight, T_data, R, BATCH_UNROLL>(row, num_samples, ySample, layer, num_layers,
                                                                  batch_size, maxDilation, Wcur, B, L, a_cur_sh, a_prev,
                                                                  xt, yInPrev, yInCur, embedPrev, embedCur, tanhEmbed);
-  } else if (thread_id < 4 * R) {
+  } else if (thread_id < 4 * R) {  // Formula (6)
     int row = thread_id - 3 * R;
     nv_wavenet_persistent_res<T_weight, T_data, R, BATCH_UNROLL>(row, num_samples, ySample, layer, num_layers,
                                                                  batch_size, maxDilation, Wres, Bres, a_cur_sh, xt, h,
@@ -498,20 +498,20 @@ __global__ void nv_wavenet_persistent(nv_wavenet_params<T_weight, T_data> params
   // int softmax_blocks = params.batch_size;
   int thread_id = threadIdx.x;
 
-  if (blockIdx.x < prev_blocks) {
+  if (blockIdx.x < prev_blocks) {  // Formula (2)
     // Prev
     int layer = blockIdx.x;
     nv_wavenet_persistent_prev<T_weight, T_data, R, BATCH_UNROLL>(
         thread_id, params.num_samples, params.ySample, layer, params.num_layers, params.batch_size, params.maxDilation,
         params.Wprev, params.a_prev, params.xt);
-  } else if (blockIdx.x < prev_blocks + cur_blocks) {
+  } else if (blockIdx.x < prev_blocks + cur_blocks) {  // Formula (3)  (4)  (5)  (6)
     // Cur
     int layer = blockIdx.x - prev_blocks;
     nv_wavenet_persistent_cur_res<T_weight, T_data, R, BATCH_UNROLL>(
         thread_id, params.num_samples, params.ySample, layer, params.num_layers, params.batch_size, params.maxDilation,
         params.Wcur, params.B, params.L, params.Wres, params.Bres, params.a_prev, params.xt, params.h, params.xtOut,
         params.dumpActivations, params.yInPrev, params.yInCur, params.embedPrev, params.embedCur, params.tanhEmbed);
-  } else if (blockIdx.x < prev_blocks + cur_blocks + skip_blocks) {
+  } else if (blockIdx.x < prev_blocks + cur_blocks + skip_blocks) {  // Formula (7)
     // Skip
     int block_id = blockIdx.x - prev_blocks - cur_blocks;
     int layer = block_id * s_tiles;
@@ -523,18 +523,18 @@ __global__ void nv_wavenet_persistent(nv_wavenet_params<T_weight, T_data> params
         params.skip_out + tile_offset, params.skip_out + tile_offset, S, R, S, layer == params.num_layers - 1);
   }
   // AxS
-  else if (blockIdx.x < prev_blocks + cur_blocks + skip_blocks + Zs_blocks) {
+  else if (blockIdx.x < prev_blocks + cur_blocks + skip_blocks + Zs_blocks) {  // Formula (8)
     int tile_id = blockIdx.x - prev_blocks - cur_blocks - skip_blocks;
     nv_wavenet_persistent_GEMM<T_weight, T_data, 4 * R, R, BATCH_UNROLL>(
         thread_id, params.num_samples, params.ySample, tile_id, params.batch_size, params.WskipOut, params.BskipOut,
         params.skip_out + (params.num_layers - 1) * params.batch_size * S, params.skipOutFinal,
-        params.skipOutAccumulate, A, S, true);
-  } else if (blockIdx.x < prev_blocks + cur_blocks + skip_blocks + Zs_blocks + Za_blocks) {
+        params.skipOutAccumulate, A, S, true /*doReLU*/);
+  } else if (blockIdx.x < prev_blocks + cur_blocks + skip_blocks + Zs_blocks + Za_blocks) {  // Formula (9)
     int tile_id = blockIdx.x - prev_blocks - cur_blocks - skip_blocks - Zs_blocks;
     nv_wavenet_persistent_GEMM<T_weight, T_data, 4 * R, R, BATCH_UNROLL>(
         thread_id, params.num_samples, params.ySample, tile_id, params.batch_size, params.Wout, params.Bout,
         params.skipOutAccumulate + (S / R - 1) * A * params.batch_size, params.out, params.outAccumulate, A, A);
-  } else {
+  } else {  // Formula (10)
     int block_id = blockIdx.x - prev_blocks - cur_blocks - skip_blocks - Zs_blocks - Za_blocks;
     nv_wavenet_persistent_softmax<T_weight, T_data, R, S, A, 1>(
         block_id, params.batch_size, params.num_layers, params.num_samples, params.maxDilation, params.outAccumulate,
